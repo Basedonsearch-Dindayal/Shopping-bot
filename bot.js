@@ -106,5 +106,8 @@ const links = fs
   console.log(`✅ Successful : ${successCount}`);
   console.log(`❌ Failed     : ${failedCount}`);
 
+  const logLine = `${new Date().toISOString()} | success=${successCount} | failed=${failedCount} | total=${links.length}\n`;
+  fs.appendFileSync("run-log.txt", logLine);
+
   await browser.close();
 })();
