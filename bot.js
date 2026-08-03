@@ -2,7 +2,9 @@ const { chromium } = require("playwright");
 const fs = require("fs");
 
 const PAGE = "https://shoppingenie.in/c/swiggy-buzzstreak";
-const WAIT_AFTER_SUBMIT = 5000;
+const API_ENDPOINT = "https://shoppingenie.in/api/collect/swiggy-buzzstreak";
+
+const WAIT_AFTER_SUCCESS = 2000;
 const MAX_RETRIES = 3;
 
 const links = fs
@@ -30,30 +32,15 @@ const links = fs
 
   page.setDefaultTimeout(30000);
 
-  // Log API responses
-  page.on("response", async (response) => {
-    try {
-      const request = response.request();
-
-      if (
-        request.method() === "POST" ||
-        request.resourceType() === "xhr" ||
-        request.resourceType() === "fetch"
-      ) {
-        console.log("------------ API RESPONSE ------------");
-        console.log("URL     :", response.url());
-        console.log("METHOD  :", request.method());
-        console.log("STATUS  :", response.status());
-        console.log("--------------------------------------");
-      }
-    } catch {}
-  });
+  let successCount = 0;
+  let failedCount = 0;
 
   for (let i = 0; i < links.length; i++) {
     const link = links[i];
-    let success = false;
 
     console.log(`\n========== ${i + 1}/${links.length} ==========`);
+
+    let success = false;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -67,39 +54,57 @@ const links = fs
 
         await page.fill("#swiggy-buzzstreak-link", link);
 
+        // Wait for the exact POST request
+        const responsePromise = page.waitForResponse((response) => {
+          return (
+            response.url() === API_ENDPOINT &&
+            response.request().method() === "POST"
+          );
+        });
+
         await page.getByRole("button", {
           name: "Submit",
         }).click();
 
-        console.log("Submit clicked.");
+        const response = await responsePromise;
 
-        await page.waitForTimeout(WAIT_AFTER_SUBMIT);
+        if (response.status() !== 200) {
+          throw new Error(
+            `Submission failed. Server returned ${response.status()}`
+          );
+        }
 
-        console.log(`Finished waiting ${WAIT_AFTER_SUBMIT / 1000}s`);
+        console.log("✅ Submission Accepted (HTTP 200)");
 
         success = true;
+        successCount++;
+
+        await page.waitForTimeout(WAIT_AFTER_SUCCESS);
+
         break;
       } catch (err) {
-        console.log(`Attempt ${attempt} failed`);
+        console.log(`❌ Attempt ${attempt} failed`);
         console.log(err.message);
 
         if (attempt < MAX_RETRIES) {
-          console.log("Retrying...");
+          console.log("Retrying in 2 seconds...");
           await page.waitForTimeout(2000);
         }
       }
     }
 
-    if (success) {
-      console.log("✅ Completed");
-    } else {
-      console.log("❌ Failed");
+    if (!success) {
+      failedCount++;
+      console.log("❌ Failed after all retries");
+      console.log(link);
     }
   }
-
-  await browser.close();
 
   console.log("\n========================================");
   console.log("BOT FINISHED");
   console.log("========================================");
+  console.log(`✅ Successful : ${successCount}`);
+  console.log(`❌ Failed     : ${failedCount}`);
+
+  await browser.close();
 })();
