@@ -1,12 +1,13 @@
 name: Shopping Bot
 
 on:
-  schedule:
-    - cron: '0 * * * *'
   workflow_dispatch:
 
+  schedule:
+    - cron: "0 * * * *"
+
 jobs:
-  run-bot:
+  bot:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,3 +22,10 @@ jobs:
       - run: npx playwright install --with-deps chromium
 
       - run: node bot.js
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: |
+            *.png
