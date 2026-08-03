@@ -3,91 +3,105 @@ const fs = require("fs");
 
 const PAGE = "https://shoppingenie.in/c/swiggy-buzzstreak";
 
+const WAIT_AFTER_SUBMIT = 5000;
+const MAX_RETRIES = 3;
+
 const links = fs
   .readFileSync("links.txt", "utf8")
   .split(/\r?\n/)
-  .map((x) => x.trim())
+  .map(l => l.trim())
   .filter(Boolean);
 
 (async () => {
+  console.log("========================================");
+  console.log("Shopping Genie Bot Started");
+  console.log(`Total Links : ${links.length}`);
+  console.log("========================================");
+
   const browser = await chromium.launch({
-    headless: true,
+    headless: true
   });
 
   const page = await browser.newPage({
     viewport: {
       width: 1366,
-      height: 768,
-    },
+      height: 768
+    }
   });
 
+  page.setDefaultTimeout(30000);
+
   for (let i = 0; i < links.length; i++) {
+
     const link = links[i];
+    let submitted = false;
 
-    console.log(`\n==========`);
-    console.log(`Submitting ${i + 1}/${links.length}`);
-    console.log(link);
+    console.log("");
+    console.log(`========== ${i + 1}/${links.length} ==========`);
 
-    let success = false;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
+
         console.log(`Attempt ${attempt}`);
 
         await page.goto(PAGE, {
-          waitUntil: "networkidle",
-          timeout: 60000,
+          waitUntil: "networkidle"
         });
 
-        await page.waitForSelector("#swiggy-buzzstreak-link", {
-          timeout: 10000,
-        });
+        await page.waitForSelector("#swiggy-buzzstreak-link");
+
+        await page.fill("#swiggy-buzzstreak-link", "");
 
         await page.fill("#swiggy-buzzstreak-link", link);
 
         await page.getByRole("button", {
-          name: "Submit",
+          name: "Submit"
         }).click();
 
-        // Wait for Thank You text
-        await page.getByText(/thank/i).waitFor({
-          timeout: 7000,
-        });
+        console.log("Submitted. Waiting 5 seconds...");
 
-        console.log("✅ SUCCESS");
+        await page.waitForTimeout(WAIT_AFTER_SUBMIT);
 
-        await page.screenshot({
-          path: `success-${i + 1}.png`,
-          fullPage: true,
-        });
+        console.log(`SUCCESS : ${link}`);
 
-        success = true;
+        submitted = true;
+
         break;
+
       } catch (err) {
-        console.log("❌ Failed");
 
-        if (attempt === 2) {
-          await page.screenshot({
-            path: `failed-${i + 1}.png`,
-            fullPage: true,
-          });
+        console.log(`Attempt ${attempt} failed`);
 
-          console.log(err.message);
-        } else {
+        console.log(err.message);
+
+        if (attempt < MAX_RETRIES) {
+
           console.log("Retrying...");
+
+          await page.waitForTimeout(2000);
+
         }
+
       }
+
     }
 
-    if (!success) {
-      console.log(`Skipping link ${i + 1}`);
+    if (!submitted) {
+
+      console.log("FAILED");
+
+      console.log(link);
+
     }
 
-    await page.waitForTimeout(3000);
   }
 
   await browser.close();
 
-  console.log("\n========================");
+  console.log("");
+  console.log("========================================");
   console.log("BOT FINISHED");
+  console.log("========================================");
+
 })();

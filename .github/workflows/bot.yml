@@ -17,15 +17,11 @@ jobs:
         with:
           node-version: 22
 
-      - run: npm install
+      - name: Install dependencies
+        run: npm install
 
-      - run: npx playwright install --with-deps chromium
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
 
-      - run: node bot.js
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: screenshots
-          path: |
-            *.png
+      - name: Run Bot
+        run: node bot.js
