@@ -1,0 +1,6 @@
+{
+  "name":"shopping-bot",
+  "version":"1.0.0",
+  "scripts":{"start":"node bot.js"},
+  "dependencies":{"playwright":"^1.62.1"}
+}
